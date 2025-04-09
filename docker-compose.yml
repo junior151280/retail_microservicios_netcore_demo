@@ -1,0 +1,35 @@
+version: '3.8'
+
+services:
+  catalogo-api:
+    image: catalogo-api
+    build:
+      context: ./catalogo/Catalogo.API
+      dockerfile: Dockerfile
+    ports:
+      - "5001:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    networks:
+      - retail-network
+
+  website:
+    image: website
+    build:
+      context: ./frontend/WebSite
+      dockerfile: Dockerfile
+    ports:
+      - "5000:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+      - Services__Catalogo=http://catalogo-api:8080
+    depends_on:
+      - catalogo-api
+    networks:
+      - retail-network
+
+networks:
+  retail-network:
+    driver: bridge
