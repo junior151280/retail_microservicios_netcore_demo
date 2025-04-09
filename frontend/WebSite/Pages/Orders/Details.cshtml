@@ -1,0 +1,65 @@
+@page "{id:int}"
+@model Website.Pages.Orders.DetailsModel
+@{
+    ViewData["Title"] = "Order Details";
+}
+
+<div class="container mt-4">
+    <h1>Order Details</h1>
+    
+    @if (Model.Order != null)
+    {
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <div class="d-flex justify-content-between">
+                    <h5 class="mb-0">Order #@Model.Order.Id</h5>
+                    <span>Date: @Model.Order.OrderDate.ToString("yyyy-MM-dd HH:mm")</span>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <h5>Customer Information</h5>
+                        <p><strong>Name:</strong> @Model.Order.CustomerName</p>
+                        <p><strong>Email:</strong> @Model.Order.CustomerEmail</p>
+                    </div>
+                    <div class="col-md-6 text-md-end">
+                        <h5>Order Summary</h5>
+                        <p><strong>Items:</strong> @Model.Order.Items.Count</p>
+                        <p><strong>Total Amount:</strong> @Model.Order.TotalAmount.ToString("C")</p>
+                    </div>
+                </div>
+                
+                <h5>Order Items</h5>
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Book ID</th>
+                                <th>Title</th>
+                                <th>Price</th>
+                                <th>Quantity</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in Model.Order.Items)
+                            {
+                                <tr>
+                                    <td>@item.BookId</td>
+                                    <td>@item.BookTitle</td>
+                                    <td>@item.Price.ToString("C")</td>
+                                    <td>@item.Quantity</td>
+                                    <td>@((item.Price * item.Quantity).ToString("C"))</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="card-footer">
+                <a asp-page="Index" class="btn btn-secondary">Back to Orders</a>
+            </div>
+        </div>
+    }
+</div>

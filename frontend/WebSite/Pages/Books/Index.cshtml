@@ -1,0 +1,35 @@
+@page
+@using WebSite.Pages.Books
+@model WebSite.Pages.Books.IndexModel
+@{
+    ViewData["Title"] = "Lista de Livros";
+}
+
+<h1>Lista de Livros</h1>
+
+@if (Model.Books != null && Model.Books.Any())
+{
+    <table class="table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Nome</th>
+                <th>Autor</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var book in Model.Books)
+            {
+                <tr>
+                    <td>@book.Id</td>
+                    <td>@book.Name</td>
+                    <td>@book.Author</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No books available.</p>
+}
