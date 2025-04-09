@@ -1,0 +1,28 @@
+name: 'CI Workflow'
+
+on:
+  workflow_dispatch:
+    
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: restore dependencies
+        run: |
+          echo "Restoring dependencies..."
+          dotnet restore
+      
+      - name: build
+        run: |
+          echo "Building solution..."
+          dotnet build --configuration Release --no-restore   
+
+      - name: pack
+        run: |
+          echo "Packing solution..."
+          dotnet pack --configuration Release --no-build --output ./artifacts
+
+      
