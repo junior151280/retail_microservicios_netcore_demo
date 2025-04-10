@@ -2,15 +2,19 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Website.Models;
 using Website.Services;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace Website.Pages.Orders
 {
     public class CreateModel : PageModel
     {
-        private readonly OrderService _orderService;
+        private readonly IOrderService _orderService;
         private readonly ILogger<CreateModel> _logger;
 
-        public CreateModel(OrderService orderService, ILogger<CreateModel> logger)
+        public CreateModel(IOrderService orderService, ILogger<CreateModel> logger)
         {
             _orderService = orderService;
             _logger = logger;
@@ -82,7 +86,15 @@ namespace Website.Pages.Orders
             try
             {
                 var createdOrder = await _orderService.CreateOrderAsync(Order);
-                return RedirectToPage("Details", new { id = createdOrder.Id });
+                if (createdOrder != null)
+                {
+                    return RedirectToPage("./Details", new { id = createdOrder.Id });
+                }
+                else
+                {
+                    ModelState.AddModelError(string.Empty, "Error creating order. Please try again later.");
+                    return Page();
+                }
             }
             catch (Exception ex)
             {

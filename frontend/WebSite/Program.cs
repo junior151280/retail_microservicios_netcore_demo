@@ -1,3 +1,5 @@
+using Website.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
@@ -13,6 +15,7 @@ builder.Services.AddHttpClient("PedidosApi", client =>
     client.BaseAddress = new Uri($"{orderServiceUrl}/api/");
 });
 
+builder.Services.AddScoped<IOrderService, OrderService>();
 
 var app = builder.Build();
 

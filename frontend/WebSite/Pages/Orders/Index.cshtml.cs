@@ -2,33 +2,25 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Website.Models;
 using Website.Services;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace Website.Pages.Orders
 {
     public class IndexModel : PageModel
     {
-        private readonly OrderService _orderService;
-        private readonly ILogger<IndexModel> _logger;
+        private readonly IOrderService _orderService;
 
-        public IndexModel(OrderService orderService, ILogger<IndexModel> logger)
+        public IndexModel(IOrderService orderService)
         {
             _orderService = orderService;
-            _logger = logger;
         }
 
-        public List<BookOrder> Orders { get; set; } = new();
+        public List<BookOrder> Orders { get; set; } = new List<BookOrder>();
 
         public async Task OnGetAsync()
         {
-            try
-            {
-                Orders = await _orderService.GetAllOrdersAsync();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error retrieving orders");
-                ModelState.AddModelError(string.Empty, "Error loading orders. Please try again later.");
-            }
+            Orders = await _orderService.GetOrdersAsync();
         }
     }
 }

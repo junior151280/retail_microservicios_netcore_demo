@@ -1,59 +1,70 @@
-using System.Text;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Json;
 using System.Text.Json;
+using System.Threading.Tasks;
 using Website.Models;
 
 namespace Website.Services
 {
-    public class OrderService
+    public interface IOrderService
     {
-        private readonly HttpClient _httpClient;
-        private readonly string _apiBaseUrl = "http://localhost:5272/api/BookOrders";
+        Task<List<BookOrder>> GetOrdersAsync();
+        Task<BookOrder> GetOrderAsync(int id);
+        Task<BookOrder> CreateOrderAsync(BookOrder order);
+    }
+
+    public class OrderService : IOrderService
+    {
+        private readonly IHttpClientFactory _httpClientFactory;
         private readonly JsonSerializerOptions _jsonOptions;
 
-        public OrderService(HttpClient httpClient)
+        public OrderService(IHttpClientFactory httpClientFactory)
         {
-            _httpClient = httpClient;
-            _jsonOptions = new JsonSerializerOptions
+            _httpClientFactory = httpClientFactory;
+            _jsonOptions = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+        }
+
+        public async Task<List<BookOrder>> GetOrdersAsync()
+        {
+            var client = _httpClientFactory.CreateClient("PedidosApi");
+            var response = await client.GetAsync("bookorders");
+            
+            if (response.IsSuccessStatusCode)
             {
-                PropertyNameCaseInsensitive = true
-            };
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<List<BookOrder>>(json, _jsonOptions) ?? new List<BookOrder>();
+            }
+            
+            return new List<BookOrder>();
         }
 
-        public async Task<List<BookOrder>> GetAllOrdersAsync()
+        public async Task<BookOrder> GetOrderAsync(int id)
         {
-            var response = await _httpClient.GetAsync(_apiBaseUrl);
-            response.EnsureSuccessStatusCode();
+            var client = _httpClientFactory.CreateClient("PedidosApi");
+            var response = await client.GetAsync($"bookorders/{id}");
             
-            var content = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<List<BookOrder>>(content, _jsonOptions) ?? new List<BookOrder>();
-        }
-
-        public async Task<BookOrder?> GetOrderByIdAsync(int id)
-        {
-            var response = await _httpClient.GetAsync($"{_apiBaseUrl}/{id}");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<BookOrder>(json, _jsonOptions);
+            }
             
-            if (response.StatusCode == System.Net.HttpStatusCode.NotFound)
-                return null;
-                
-            response.EnsureSuccessStatusCode();
-            
-            var content = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<BookOrder>(content, _jsonOptions);
+            return null;
         }
 
         public async Task<BookOrder> CreateOrderAsync(BookOrder order)
         {
-            var content = new StringContent(
-                JsonSerializer.Serialize(order, _jsonOptions),
-                Encoding.UTF8,
-                "application/json");
-                
-            var response = await _httpClient.PostAsync(_apiBaseUrl, content);
-            response.EnsureSuccessStatusCode();
+            var client = _httpClientFactory.CreateClient("PedidosApi");
+            var response = await client.PostAsJsonAsync("bookorders", order);
             
-            var responseContent = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<BookOrder>(responseContent, _jsonOptions) 
-                ?? throw new Exception("Failed to deserialize created order");
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                return JsonSerializer.Deserialize<BookOrder>(json, _jsonOptions);
+            }
+            
+            return null;
         }
     }
 }
