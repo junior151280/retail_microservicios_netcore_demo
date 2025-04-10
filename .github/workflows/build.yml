@@ -2,6 +2,11 @@ name: 'CI Workflow'
 
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the Docker images'
+        required: true
+        default: 'latest'
     
 jobs:
   build:
@@ -9,20 +14,46 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v2
-
-      - name: restore dependencies
+          
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+        
+      - name: Find Dockerfile directories
+        id: find_dockerfiles
         run: |
-          echo "Restoring dependencies..."
-          dotnet restore
-      
-      - name: build
+          DOCKERFILE_DIRS=$(find . -name "Dockerfile" -exec dirname {} \; | sort | uniq)
+          echo "Found Dockerfiles in: $DOCKERFILE_DIRS"
+          echo "dockerfile_dirs=$(echo $DOCKERFILE_DIRS | tr ' ' ',')" >> $GITHUB_OUTPUT
+          
+      - name: Build and push multiple Docker images
         run: |
-          echo "Building solution..."
-          dotnet build --configuration Release --no-restore   
-
-      - name: pack
-        run: |
-          echo "Packing solution..."
-          dotnet pack --configuration Release --no-build --output ./artifacts
-
-      
+          IFS=',' read -ra DIRS <<< "${{ steps.find_dockerfiles.outputs.dockerfile_dirs }}"
+          for dir in "${DIRS[@]}"; do
+            # Verify the directory exists and contains a Dockerfile
+            if [ ! -f "$dir/Dockerfile" ]; then
+              echo "Warning: No Dockerfile found in $dir, skipping..."
+              continue
+            fi
+            
+            # Extract service name from directory path and convert to lowercase for Docker compliance
+            SERVICE_NAME=$(basename $dir | tr '[:upper:]' '[:lower:]')
+            ORIGINAL_NAME=$(basename $dir)
+            echo "Building Docker image for $ORIGINAL_NAME from directory $dir (using lowercase tag: $SERVICE_NAME)"
+            
+            # Build and push using docker buildx for better multi-platform support
+            docker buildx build --push \
+              --platform linux/amd64 \
+              -f $dir/Dockerfile \
+              -t ghcr.io/${{ github.repository }}/$SERVICE_NAME:${{ github.event.inputs.version || 'latest' }} \
+              -t ghcr.io/${{ github.repository }}/$SERVICE_NAME:${{ github.sha }} \
+              $dir
+              
+            echo "Successfully pushed image for $ORIGINAL_NAME as ghcr.io/${{ github.repository }}/$SERVICE_NAME"
+          done
