@@ -83,6 +83,45 @@ cd frontend/WebSite
 dotnet run
 ```
 
+## 🚀 Despliegue en Azure
+
+El proyecto incluye scripts y configuraciones para desplegar los microservicios en Azure Container Apps.
+
+### Configuración de Azure
+
+1. **Prerrequisitos**:
+   - Tener instalado Azure CLI
+   - Estar autenticado en Azure (`az login`)
+   - Tener permisos para crear recursos en Azure
+
+2. **Crear los recursos en Azure**:
+   ```bash
+   # Dar permisos de ejecución al script
+   chmod +x create-azure-environment.sh
+   
+   # Ejecutar el script
+   ./.scripts/create-azure-environment.sh
+   ```
+
+3. **Configurar los secretos de GitHub**:
+   - `AZURE_CREDENTIALS`: Credenciales de autenticación a Azure
+   - `ACR_USERNAME`: Nombre de usuario del Azure Container Registry
+   - `ACR_PASSWORD`: Contraseña del Azure Container Registry
+
+### Despliegue Continuo
+
+El proyecto incluye flujos de trabajo de GitHub Actions para CI/CD:
+- `.github/workflows/catalog-service-deploy.yml`: Despliega el servicio de Catálogo
+- `.github/workflows/orders-service-deploy.yml`: Despliega el servicio de Pedidos
+- `.github/workflows/frontend-deploy.yml`: Despliega la aplicación web Frontend
+
+Los despliegues se activan automáticamente al hacer push a la rama principal, específicamente:
+- Cambios en `/catalogo` activan el despliegue del servicio de Catálogo
+- Cambios en `/pedidos` activan el despliegue del servicio de Pedidos
+- Cambios en `/frontend` activan el despliegue del Frontend
+
+Los despliegues también pueden ser iniciados manualmente desde la interfaz de GitHub Actions.
+
 ## 📚 Conceptos Clave para Principiantes
 
 ### ¿Qué son los Microservicios?
