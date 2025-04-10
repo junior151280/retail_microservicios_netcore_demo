@@ -1,0 +1,70 @@
+name: Deploy Frontend to Azure Container Apps
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/frontend-deploy.yml'
+  workflow_dispatch:
+
+env:
+  AZURE_CONTAINER_REGISTRY: retailmicroservicesacr
+  FRONTEND_IMAGE_NAME: frontend
+  RESOURCE_GROUP: retail-microservices-rg
+  CONTAINERAPPS_NAME: retail-frontend
+  CATALOG_APP_NAME: catalog-service
+  ORDERS_APP_NAME: orders-service
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Log in to ACR
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: Build and push Docker image
+      run: |
+        cd frontend/WebSite
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }} .
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }}
+        docker tag ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }} ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.FRONTEND_IMAGE_NAME }}:latest
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.FRONTEND_IMAGE_NAME }}:latest
+    
+    - name: Get service URLs and deploy frontend
+      uses: azure/cli@v2
+      with:
+        inlineScript: |
+          # Get the catalog and orders service URLs
+          CATALOG_FQDN=$(az containerapp show --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.CATALOG_APP_NAME }} --query properties.configuration.ingress.fqdn -o tsv)
+          ORDERS_FQDN=$(az containerapp show --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.ORDERS_APP_NAME }} --query properties.configuration.ingress.fqdn -o tsv)
+          
+          # Update the frontend container app with the new image and environment variables
+          az containerapp update \
+            --name ${{ env.CONTAINERAPPS_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.FRONTEND_IMAGE_NAME }}:${{ github.sha }} \
+            --set-env-vars "CatalogoAPI=https://$CATALOG_FQDN" "PedidosAPI=https://$ORDERS_FQDN"
+    
+    - name: Show deployment URL
+      uses: azure/cli@v2
+      with:
+        inlineScript: |
+          echo "Frontend URL: https://$(az containerapp show --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.CONTAINERAPPS_NAME }} --query properties.configuration.ingress.fqdn -o tsv)"

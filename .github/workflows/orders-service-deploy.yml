@@ -1,0 +1,62 @@
+name: Deploy Orders Service to Azure Container Apps
+
+on:
+  push:
+    branches: [ "main" ]
+    paths:
+      - 'pedidos/**'
+      - '.github/workflows/orders-service-deploy.yml'
+  workflow_dispatch:
+
+env:
+  AZURE_CONTAINER_REGISTRY: retailmicroservicesacr
+  ORDERS_IMAGE_NAME: orders-service
+  RESOURCE_GROUP: retail-microservices-rg
+  CONTAINERAPPS_NAME: orders-service
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v2
+    
+    - name: Set up .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Log in to Azure
+      uses: azure/login@v1
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Log in to ACR
+      uses: azure/docker-login@v1
+      with:
+        login-server: ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io
+        username: ${{ secrets.ACR_USERNAME }}
+        password: ${{ secrets.ACR_PASSWORD }}
+    
+    - name: Build and push Docker image
+      run: |
+        cd pedidos/Pedidos.API
+        docker build -t ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ORDERS_IMAGE_NAME }}:${{ github.sha }} .
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ORDERS_IMAGE_NAME }}:${{ github.sha }}
+        docker tag ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ORDERS_IMAGE_NAME }}:${{ github.sha }} ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ORDERS_IMAGE_NAME }}:latest
+        docker push ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ORDERS_IMAGE_NAME }}:latest
+    
+    - name: Deploy to Azure Container Apps
+      uses: azure/cli@v2
+      with:
+        inlineScript: |
+          az containerapp update \
+            --name ${{ env.CONTAINERAPPS_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.AZURE_CONTAINER_REGISTRY }}.azurecr.io/${{ env.ORDERS_IMAGE_NAME }}:${{ github.sha }}
+    
+    - name: Show deployment URL
+      uses: azure/cli@v2
+      with:
+        inlineScript: |
+          echo "Orders API URL: https://$(az containerapp show --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.CONTAINERAPPS_NAME }} --query properties.configuration.ingress.fqdn -o tsv)/api"
